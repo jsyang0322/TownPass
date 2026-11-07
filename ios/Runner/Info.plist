@@ -79,6 +79,10 @@
         <string>This app needs camera access to scan QR codes</string>
         <key>NSPhotoLibraryUsageDescription</key>
         <string>This app needs photos access to get QR code from photo library</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>AI 語音助手需要使用麥克風，聽您說出想辦的事</string>
+		<key>NSSpeechRecognitionUsageDescription</key>
+		<string>AI 語音助手會在手機上把您說的話轉成文字，不會傳到網路上</string>
 		<key>UIStatusBarHidden</key>
 		<false/>
 	</dict>
