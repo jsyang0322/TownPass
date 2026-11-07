@@ -44,7 +44,8 @@ class TaskRunnerService extends GetxService {
   }) async {
     // 同時只跑一個：上一個還在跑就先停掉，並等它收尾完再開始。
     // 不等的話，上一個收尾時會把 running 設回 false，這一個的浮層和停止按鈕就失效了
-    while (_current case Future<void> previous) {
+    while (_current != null) {
+      final Future<void> previous = _current!;
       await stop();
       await previous;
     }
