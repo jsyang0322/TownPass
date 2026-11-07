@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_edge_ai/flutter_edge_ai.dart';
+import 'package:flutter_edge_ai_litertlm/flutter_edge_ai_litertlm.dart';
 import 'package:get/get.dart';
 import 'package:town_pass/gen/assets.gen.dart';
 import 'package:town_pass/service/account_service.dart';
 import 'package:town_pass/service/device_service.dart';
 import 'package:town_pass/service/geo_locator_service.dart';
+import 'package:town_pass/service/llm_service.dart';
 import 'package:town_pass/service/notification_service.dart';
 import 'package:town_pass/service/package_service.dart';
 import 'package:town_pass/service/shared_preferences_service.dart';
@@ -20,6 +23,10 @@ const _transparentStatusBar = SystemUiOverlayStyle(
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 裝置端 LLM：註冊 LiteRT-LM 推論引擎（只需一次）。
+  // 模型本身不在這裡載入，第一次收到 llm_status 時才由 LlmService 載入。
+  FlutterEdgeAi.initialize(inferenceEngines: [LiteRtLmEngine()]);
   // FlutterNativeSplash.preserve(
   //   widgetsBinding: WidgetsFlutterBinding.ensureInitialized(),
   // );
@@ -42,6 +49,7 @@ Future<void> initServices() async {
   Get.put<SubscriptionService>(SubscriptionService());
   Get.put<SpeechService>(SpeechService());
   Get.put<TaskRunnerService>(TaskRunnerService());
+  Get.put<LlmService>(LlmService());
 }
 
 class MyApp extends StatelessWidget {
