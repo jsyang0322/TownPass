@@ -15,6 +15,11 @@ class SpeechService extends GetxService {
   /// 兩個平台都是 0.5 為正常語速（flutter_tts 在 Android 端會乘 2），長輩用的預設值稍慢。
   static const double defaultSpeechRate = 0.42;
 
+  /// speech_to_text 的停頓計時從開始聽就在算。長輩開口前常會想一下，所以開口前等久一點，
+  /// 聽到第一個字後再縮短，說完停頓這麼久就結束。實測後再調。
+  static const Duration _pauseBeforeSpeech = Duration(seconds: 8);
+  static const Duration _pauseAfterSpeech = Duration(seconds: 3);
+
   final SpeechToText _stt = SpeechToText();
   final FlutterTts _tts = FlutterTts();
 
@@ -66,8 +71,7 @@ class SpeechService extends GetxService {
           partialResults: true,
           cancelOnError: true,
           listenMode: ListenMode.dictation,
-          // 長輩說話停頓較長，先設 3 秒，實測後再調
-          pauseFor: const Duration(seconds: 3),
+          pauseFor: _pauseBeforeSpeech,
           listenFor: const Duration(seconds: 30),
         ),
       );
@@ -178,12 +182,17 @@ class SpeechService extends GetxService {
   }
 
   void _onResult(SpeechRecognitionResult result) {
+    final bool firstWords = _lastWords.isEmpty && result.recognizedWords.isNotEmpty;
     _lastWords = result.recognizedWords;
     if (result.finalResult) {
       _finishListening();
-    } else {
-      _onPartial?.call(_lastWords);
+      return;
     }
+
+    if (firstWords && _stt.isListening) {
+      _stt.changePauseFor(_pauseAfterSpeech);
+    }
+    _onPartial?.call(_lastWords);
   }
 
   void _onStatus(String status) {

@@ -265,7 +265,8 @@ class TPInAppWebView extends StatelessWidget {
       layoutDirection: layoutDirection,
       initialData: initialData,
       initialFile: initialFile,
-      initialSettings: initialSettings,
+      // debug、profile 版允許 Safari Web Inspector 檢查 WebView（iOS 預設不允許）
+      initialSettings: initialSettings ?? InAppWebViewSettings(isInspectable: !kReleaseMode),
       initialUrlRequest: initialUrlRequest,
       initialUserScripts: initialUserScripts,
       pullToRefreshController: pullToRefreshController,
