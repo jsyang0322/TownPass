@@ -87,6 +87,23 @@ class TPWebView extends StatelessWidget {
       body: TPTaskOverlay(
         enabled: runsTask,
         child: TPInAppWebView(
+          initialSettings: switch (runsTask) {
+            true => InAppWebViewSettings(isInspectable: !kReleaseMode, useShouldOverrideUrlLoading: true),
+            false => null,
+          },
+          // 腳本執行中，主頁面只能停在白名單網域；執行結束後交還使用者，不再限制
+          shouldOverrideUrlLoading: (_, action) async {
+            final TaskRunnerService runner = Get.find<TaskRunnerService>();
+            final WebUri? uri = action.request.url;
+            final bool leavesWhitelist = action.isForMainFrame &&
+                uri != null &&
+                uri.scheme.startsWith('http') &&
+                !TaskRunnerService.allowedHosts.contains(uri.host);
+            return switch (runsTask && runner.running.value && leavesWhitelist) {
+              true => NavigationActionPolicy.CANCEL,
+              false => NavigationActionPolicy.ALLOW,
+            };
+          },
           onWebViewCreated: (controller) {
             webViewController.value = controller;
             if (runsTask) {

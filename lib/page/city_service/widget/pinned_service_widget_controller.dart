@@ -4,6 +4,8 @@ import 'package:town_pass/page/city_service/model/my_service_model.dart';
 class PinnedServiceWidgetController extends GetxController {
   final RxList<MyServiceItemId> _pinnedList = RxList(
     [
+      // 這份清單只存在記憶體，App 重開就回到預設；放在預設清單，demo 時不用每次手動加入
+      MyServiceItemId.voiceAgent,
       MyServiceItemId.locationSearch,
       MyServiceItemId.districtOffice,
       MyServiceItemId.dashboard,
