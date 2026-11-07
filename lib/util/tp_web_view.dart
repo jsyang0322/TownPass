@@ -40,12 +40,6 @@ class TPWebView extends StatelessWidget {
     this.titleController,
   });
 
-  String get url => (Get.arguments as WebViewArgument?)?.url ?? '';
-
-  String? get forceTitle => (Get.arguments as WebViewArgument?)?.forceTitle;
-
-  bool get runsTask => (Get.arguments as WebViewArgument?)?.runsTask ?? false;
-
   final TPAppBarController _defaultTitleController = TPAppBarController();
 
   TPAppBarController get appBarController => titleController ?? _defaultTitleController;
@@ -56,6 +50,13 @@ class TPWebView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 讀這個頁面自己的路由參數，不用 Get.arguments：Get.arguments 是最上層頁面的參數，
+    // 任務頁疊在助手頁上時，助手頁的回呼（例如 onLoadStop）會讀到任務頁的參數
+    final WebViewArgument? argument = ModalRoute.settingsOf(context)?.arguments as WebViewArgument?;
+    final String url = argument?.url ?? '';
+    final String? forceTitle = argument?.forceTitle;
+    final bool runsTask = argument?.runsTask ?? false;
+
     return Scaffold(
       appBar: TPAppBar(
         backgroundColor: TPColors.primary500,

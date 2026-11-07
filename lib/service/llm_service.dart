@@ -14,9 +14,9 @@ import 'package:get/get.dart';
 /// - 一次只跑一個請求（[isBusy]），手機記憶體有限。
 /// - 推論全程在裝置端，不呼叫任何雲端模型 API（競賽規則）。
 class LlmService extends GetxService {
-  /// 推論的 context window（prompt＋回覆合計）。.litertlm 最少 1024；
-  /// 2048 足夠放任務 B 的規定資料與回覆。
-  static const int contextWindowTokens = 2048;
+  /// 推論的 context window（prompt＋回覆合計）。.litertlm 最少 1024。
+  /// 任務 B 的規定資料（web/src/data/faq/）約 1,500～2,000 字，加上回覆會超過 2048，所以用 4096。
+  static const int contextWindowTokens = 4096;
 
   /// 單次回覆長度上限的預設值（任務 B 的規格建議 150）。
   static const int defaultMaxOutputTokens = 150;
