@@ -61,6 +61,11 @@ class LlmAskMessageHandler extends TPWebMessageHandler {
     required bool isMainFrame,
     required Function(WebMessage reply)? onReply,
   }) async {
+    // 網頁逾時或取消時送 { action: 'stop' }：中止目前的推論，釋放 busy（不回覆）
+    if (message is Map && message['action'] == 'stop') {
+      await Get.find<LlmService>().stopGeneration();
+      return;
+    }
     if (message is! Map) {
       onReply?.call(replyWebMessage(data: {
         'status': 'error',

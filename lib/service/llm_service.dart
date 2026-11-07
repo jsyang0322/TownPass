@@ -31,6 +31,9 @@ class LlmService extends GetxService {
   bool _busy = false;
   Future<void>? _warmUp;
 
+  /// 進行中的 chat 物件，供 [stopGeneration] 中止；沒在推論時為 null。
+  dynamic _chat;
+
   /// flutter_edge_ai 的 model 物件。
   /// 以 dynamic 持有：API 以 pub.dev 上 2.5.x 的 README 為準，型別名稱若有出入
   /// 不影響編譯，實機 PoC 時再確認。
@@ -117,6 +120,7 @@ class LlmService extends GetxService {
       final dynamic chat = await _model.createChat(
         maxOutputTokens: maxTokens ?? defaultMaxOutputTokens,
       );
+      _chat = chat;
       // Gemma 的對話模板沒有 system 角色；官方慣例是把 system 併進第一則使用者訊息。
       final String fullPrompt =
           (system == null || system.isEmpty) ? prompt : '$system\n\n$prompt';
@@ -129,6 +133,21 @@ class LlmService extends GetxService {
       }
     } finally {
       _busy = false;
+      _chat = null;
+    }
+  }
+
+  /// 中止目前的推論（網頁逾時或使用者取消時呼叫）。
+  /// 沒在推論時是 no-op；停止後 [generate] 的串流會自行結束並釋放 busy。
+  Future<void> stopGeneration() async {
+    final dynamic chat = _chat;
+    if (!_busy || chat == null) {
+      return;
+    }
+    try {
+      await chat.stopGeneration();
+    } catch (_) {
+      // 套件版本沒有 stopGeneration 時忽略：推論會自己跑完，busy 由 finally 釋放。
     }
   }
 }
