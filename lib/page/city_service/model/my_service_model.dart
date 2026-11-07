@@ -37,14 +37,14 @@ extension MyServiceIdExt on MyServiceItemId {
   MyServiceItem get item {
     return switch (this) {
       MyServiceItemId.voiceAgent => MyServiceItem(
-          title: 'AI 語音助手',
+          title: '語音助手',
           description: '用說的辦市政服務',
           icon: Assets.svg.iconVoiceAgent.svg(),
           category: MyServiceCategory.cityService,
           // 微服務網頁（TPE_Codefest2026/web）的 Firebase Hosting 正式網址。
           // 開發時要測未合併的網頁，可暫時改成預覽頻道（firebase hosting:channel:deploy dev，7 天後過期）
           destinationUrl: 'https://tpe-codefest2026.web.app',
-          forceWebViewTitle: 'AI 語音助手',
+          forceWebViewTitle: '語音助手',
         ),
       MyServiceItemId.dedicatedLine => MyServiceItem(
           title: '1999',

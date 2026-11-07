@@ -19,7 +19,7 @@ abstract class TPWebMessageListener {
         OpenLinkMessageHandler(),
         NotifyMessageHandler(),
         QRCodeScanMessageHandler(),
-        // AI 語音助手
+        // 語音助手
         VoiceListenMessageHandler(),
         TtsSpeakMessageHandler(),
         RunTaskMessageHandler(),
