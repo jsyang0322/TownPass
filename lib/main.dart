@@ -10,6 +10,7 @@ import 'package:town_pass/service/package_service.dart';
 import 'package:town_pass/service/shared_preferences_service.dart';
 import 'package:town_pass/service/speech_service.dart';
 import 'package:town_pass/service/subscription_service.dart';
+import 'package:town_pass/service/task_runner_service.dart';
 import 'package:town_pass/util/tp_colors.dart';
 import 'package:town_pass/util/tp_route.dart';
 
@@ -40,6 +41,7 @@ Future<void> initServices() async {
 
   Get.put<SubscriptionService>(SubscriptionService());
   Get.put<SpeechService>(SpeechService());
+  Get.put<TaskRunnerService>(TaskRunnerService());
 }
 
 class MyApp extends StatelessWidget {
