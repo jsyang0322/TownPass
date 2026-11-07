@@ -6,17 +6,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:get/get.dart';
 import 'package:town_pass/gen/assets.gen.dart';
+import 'package:town_pass/service/task_runner_service.dart';
 import 'package:town_pass/util/tp_app_bar.dart';
 import 'package:town_pass/util/tp_colors.dart';
+import 'package:town_pass/util/tp_task_overlay.dart';
 import 'package:town_pass/util/web_message_handler/tp_web_message_listener.dart';
 
 class WebViewArgument {
   final String? url;
   final String? forceTitle;
 
+  /// 由腳本執行器（[TaskRunnerService]）開啟：頁面疊上操作中浮層，載入狀態交給執行器
+  final bool runsTask;
+
   const WebViewArgument({
     this.url,
     this.forceTitle,
+    this.runsTask = false,
   });
 }
 
@@ -37,6 +43,8 @@ class TPWebView extends StatelessWidget {
   String get url => (Get.arguments as WebViewArgument?)?.url ?? '';
 
   String? get forceTitle => (Get.arguments as WebViewArgument?)?.forceTitle;
+
+  bool get runsTask => (Get.arguments as WebViewArgument?)?.runsTask ?? false;
 
   final TPAppBarController _defaultTitleController = TPAppBarController();
 
@@ -76,29 +84,57 @@ class TPWebView extends StatelessWidget {
         title: appBarController.title.value,
         controller: appBarController,
       ),
-      body: TPInAppWebView(
-        onWebViewCreated: (controller) {
-          webViewController.value = controller;
-          try {
-            controller.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
-          } catch (_) {
-            controller.loadData(data: _failedToLoadUrlData(url: url));
-          }
-        },
-        onUpdateVisitedHistory: (_, __, ___) async {
-          canGoBack.value = await webViewController.value?.canGoBack() ?? false;
-        },
-        onTitleChanged: (_, title) {
-          appBarController.title.value = switch (forceTitle == null) {
-            true => title,
-            false => forceTitle,
-          };
-        },
-        onGeolocationPermissionsShowPrompt: (controller, origin) async {
-          // should be deal individually (ask for user agreement)
-          return GeolocationPermissionShowPromptResponse(origin: origin, allow: true, retain: true);
-        },
-        onCloseWindow: (_) => Get.back(),
+      body: TPTaskOverlay(
+        enabled: runsTask,
+        child: TPInAppWebView(
+          initialSettings: switch (runsTask) {
+            true => InAppWebViewSettings(isInspectable: !kReleaseMode, useShouldOverrideUrlLoading: true),
+            false => null,
+          },
+          // 腳本執行中，主頁面只能停在白名單網域；執行結束後交還使用者，不再限制
+          shouldOverrideUrlLoading: (_, action) async {
+            final TaskRunnerService runner = Get.find<TaskRunnerService>();
+            final WebUri? uri = action.request.url;
+            final bool leavesWhitelist = action.isForMainFrame &&
+                uri != null &&
+                uri.scheme.startsWith('http') &&
+                !TaskRunnerService.allowedHosts.contains(uri.host);
+            return switch (runsTask && runner.running.value && leavesWhitelist) {
+              true => NavigationActionPolicy.CANCEL,
+              false => NavigationActionPolicy.ALLOW,
+            };
+          },
+          onWebViewCreated: (controller) {
+            webViewController.value = controller;
+            if (runsTask) {
+              Get.find<TaskRunnerService>().attach(controller);
+            }
+            try {
+              controller.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
+            } catch (_) {
+              controller.loadData(data: _failedToLoadUrlData(url: url));
+            }
+          },
+          onLoadStop: (_, _) {
+            if (runsTask) {
+              Get.find<TaskRunnerService>().onPageLoaded();
+            }
+          },
+          onUpdateVisitedHistory: (_, __, ___) async {
+            canGoBack.value = await webViewController.value?.canGoBack() ?? false;
+          },
+          onTitleChanged: (_, title) {
+            appBarController.title.value = switch (forceTitle == null) {
+              true => title,
+              false => forceTitle,
+            };
+          },
+          onGeolocationPermissionsShowPrompt: (controller, origin) async {
+            // should be deal individually (ask for user agreement)
+            return GeolocationPermissionShowPromptResponse(origin: origin, allow: true, retain: true);
+          },
+          onCloseWindow: (_) => Get.back(),
+        ),
       ),
     );
   }
@@ -265,7 +301,8 @@ class TPInAppWebView extends StatelessWidget {
       layoutDirection: layoutDirection,
       initialData: initialData,
       initialFile: initialFile,
-      initialSettings: initialSettings,
+      // debug、profile 版允許 Safari Web Inspector 檢查 WebView（iOS 預設不允許）
+      initialSettings: initialSettings ?? InAppWebViewSettings(isInspectable: !kReleaseMode),
       initialUrlRequest: initialUrlRequest,
       initialUserScripts: initialUserScripts,
       pullToRefreshController: pullToRefreshController,

@@ -8,6 +8,7 @@ import 'package:town_pass/gen/assets.gen.dart';
 // Then add MyServiceItem within MyServiceIdExt extension.
 
 enum MyServiceItemId {
+  voiceAgent,
   dedicatedLine,
   districtOffice,
   reportIssue,
@@ -35,6 +36,16 @@ enum MyServiceItemId {
 extension MyServiceIdExt on MyServiceItemId {
   MyServiceItem get item {
     return switch (this) {
+      MyServiceItemId.voiceAgent => MyServiceItem(
+          title: 'AI 語音助手',
+          description: '用說的辦市政服務',
+          icon: Assets.svg.iconVoiceAgent.svg(),
+          category: MyServiceCategory.cityService,
+          // 微服務網頁（TPE_Codefest2026/web）的 Firebase Hosting 預覽頻道（dev），預設 7 天後過期；
+          // 正式版改成 https://tpe-codefest2026.web.app
+          destinationUrl: 'https://tpe-codefest2026--dev-ew0fth1s.web.app',
+          forceWebViewTitle: 'AI 語音助手',
+        ),
       MyServiceItemId.dedicatedLine => MyServiceItem(
           title: '1999',
           description: '播打網路語音通話',
