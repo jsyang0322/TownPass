@@ -3,7 +3,7 @@
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
     <!-- 原本只在 debug／profile 的 manifest 裡；release 版沒有這行會連不上服務頁 -->
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- AI 語音助手：語音辨識 -->
+    <!-- 語音助手：語音辨識 -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <application
         android:label="Town Pass"
@@ -72,7 +72,7 @@
         <intent>
             <action android:name="android.support.customtabs.action.CustomTabsService" />
         </intent>
-        <!-- AI 語音助手：speech_to_text 與 flutter_tts 需要找到系統的辨識與朗讀服務 -->
+        <!-- 語音助手：speech_to_text 與 flutter_tts 需要找到系統的辨識與朗讀服務 -->
         <intent>
             <action android:name="android.speech.RecognitionService" />
         </intent>
