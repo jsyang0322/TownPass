@@ -89,3 +89,7 @@ app.*.map.json
 
 # FVM Version Cache
 .fvm/
+# 裝置端模型檔（數 GB，不進版控；見 TPE_Codefest2026/docs/系統設計文件.md 第五節）
+*.litertlm
+*.gguf
+*.task

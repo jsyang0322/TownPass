@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<!--
+  PoC 1 測試頁：驗證 llm_status / llm_ask（docs/系統設計文件.md 第三、九節）
+
+  用法（只改本機，不要 commit 設定變更）：
+  1. 在這個資料夾啟動簡易伺服器：  python3 -m http.server 8787
+     （手機和電腦要在同一個 Wi-Fi）
+  2. 暫時把 my_service_model.dart 裡任一服務的 destinationUrl 改成
+     http://<電腦IP>:8787/llm_poc.html
+  3. Android 開發測試需暫時在 AndroidManifest.xml 的 <application> 加
+     android:usesCleartextTraffic="true"（HTTP 限開發用，勿 commit）
+  4. flutter run 開啟該服務 → 按「檢查模型」直到 ready →
+     開啟飛航模式 → 輸入需求 → 送出任務 A
+  通過標準：飛航模式下，幾秒內回傳正確的任務 JSON。
+-->
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLM PoC（llm_status / llm_ask）</title>
+<style>
+  body{font-family:sans-serif;font-size:18px;margin:16px;line-height:1.6;}
+  h1{font-size:22px;}
+  button{font-size:18px;padding:10px 18px;margin:4px 8px 4px 0;min-height:48px;}
+  textarea,input{width:100%;font-size:16px;box-sizing:border-box;margin:4px 0;}
+  #state{font-weight:bold;}
+  .ready{color:#0a7a46;} .loading{color:#b45309;} .missing{color:#b3362b;}
+  pre{background:#f3f4f6;padding:10px;white-space:pre-wrap;word-break:break-all;
+      border-radius:8px;min-height:3em;}
+  .ok{border-left:6px solid #0a7a46;} .bad{border-left:6px solid #b3362b;}
+  small{color:#555;}
+</style>
+</head>
+<body>
+<h1>裝置端 LLM PoC</h1>
+<p id="bridge"></p>
+
+<h2>1. 模型狀態 <span id="state">未檢查</span></h2>
+<button onclick="checkStatus()">檢查模型（llm_status）</button>
+<label><input type="checkbox" id="poll" checked style="width:auto"> 每 2 秒自動輪詢直到 ready</label>
+<p><small id="statusDetail"></small></p>
+
+<h2>2. 任務 A：挑腳本、抽關鍵字</h2>
+<p><small>system（來自設計文件第四節，網頁端組好）：</small></p>
+<textarea id="system" rows="9">你是臺北市政府城市通的語音助手。從下列任務中選出最符合使用者需求的一個，並抽出需要的資料。只輸出 JSON，不要輸出其他文字。
+任務：
+- parking_fee：查詢路邊停車費。資料：vehicle（汽車或機車）、plate（車號）
+- library_search：在圖書館查書。資料：keyword（書名或作者）
+- counter_calling：查詢臨櫃叫號進度。資料：office（機關名稱）
+- question：詢問規定或其他問題
+- other：以上都不是
+格式：{"task": "...", "slots": {...}, "question": "task 為 question 時，填使用者的問題"}
+使用者沒提到的資料不要填。</textarea>
+<input id="utterance" value="幫我查停車費，車號 ABC 123">
+<button onclick="askTaskA()">送出（llm_ask）</button>
+<p>串流輸出（partial，累積全文）：</p>
+<pre id="stream"></pre>
+<p>結果驗證：<span id="verdict"></span> <span id="elapsed"></span></p>
+<pre id="parsed"></pre>
+
+<script>
+const bridgeOk = !!window.flutterObject;
+document.getElementById('bridge').innerHTML = bridgeOk
+  ? '✅ flutterObject 可用（在 App 內）'
+  : '❌ 沒有 flutterObject：請在 TownPass App 的 WebView 內開啟本頁';
+
+let seq = 0;
+function request(name, data, { onPartial, timeoutMs = 60000 } = {}) {
+  const id = String(++seq);
+  return new Promise((resolve, reject) => {
+    const cleanup = () => { clearTimeout(timer); window.flutterObject.removeEventListener('message', onMessage); };
+    const onMessage = (event) => {
+      let msg; try { msg = JSON.parse(event.data); } catch { return; }
+      if (msg.name !== name || msg.data?.id !== id) return;
+      if (msg.data.status === 'partial') return onPartial?.(msg.data);
+      cleanup();
+      msg.data.status === 'done' ? resolve(msg.data) : reject(msg.data);
+    };
+    const timer = setTimeout(() => { cleanup(); reject({ status: 'error', code: 'timeout' }); }, timeoutMs);
+    window.flutterObject.addEventListener('message', onMessage);
+    window.flutterObject.postMessage(JSON.stringify({ name, data: { ...data, id } }));
+  });
+}
+
+let pollTimer = null;
+async function checkStatus() {
+  if (!bridgeOk) return;
+  const el = document.getElementById('state');
+  try {
+    const r = await request('llm_status', {}, { timeoutMs: 10000 });
+    el.textContent = r.state;
+    el.className = r.state;
+    document.getElementById('statusDetail').textContent =
+      (r.state === 'loading' && r.progress != null ? `下載中 ${r.progress}%　` : '') + (r.message || '');
+    if (r.state !== 'ready' && document.getElementById('poll').checked) {
+      clearTimeout(pollTimer); pollTimer = setTimeout(checkStatus, 2000);
+    }
+  } catch (e) { el.textContent = '錯誤：' + (e.code || JSON.stringify(e)); el.className = 'missing'; }
+}
+
+const TASKS = { parking_fee: ['vehicle','plate'], library_search: ['keyword'], counter_calling: ['office'], question: [], other: [] };
+async function askTaskA() {
+  if (!bridgeOk) return;
+  const streamEl = document.getElementById('stream');
+  const verdictEl = document.getElementById('verdict');
+  const parsedEl = document.getElementById('parsed');
+  streamEl.textContent = ''; verdictEl.textContent = '…'; parsedEl.textContent = ''; parsedEl.className = '';
+  const t0 = Date.now();
+  try {
+    const r = await request('llm_ask', {
+      system: document.getElementById('system').value,
+      prompt: '使用者說：「' + document.getElementById('utterance').value + '」',
+      maxTokens: 150,
+    }, { onPartial: (d) => { streamEl.textContent = d.text; } });
+    streamEl.textContent = r.text;
+    document.getElementById('elapsed').textContent = `（${((Date.now()-t0)/1000).toFixed(1)} 秒）`;
+    // 與網頁端相同的驗證邏輯：可 parse、task 在清單內、slots 只含該任務欄位
+    try {
+      const jsonText = r.text.slice(r.text.indexOf('{'), r.text.lastIndexOf('}') + 1);
+      const obj = JSON.parse(jsonText);
+      const okTask = Object.hasOwn(TASKS, obj.task);
+      const okSlots = !obj.slots || Object.keys(obj.slots).every(k => (TASKS[obj.task] || []).includes(k));
+      verdictEl.textContent = okTask && okSlots ? '✅ 通過（PoC 1 成功）' : '⚠️ JSON 可解析，但 task/slots 不在白名單';
+      parsedEl.textContent = JSON.stringify(obj, null, 2);
+      parsedEl.className = okTask && okSlots ? 'ok' : 'bad';
+    } catch { verdictEl.textContent = '❌ 無法解析為 JSON（備案：縮短 prompt 或換量化版本）'; parsedEl.className = 'bad'; }
+  } catch (e) {
+    verdictEl.textContent = '❌ ' + (e.code || 'error') + '：' + (e.message || '');
+  }
+}
+</script>
+</body>
+</html>
