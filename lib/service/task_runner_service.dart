@@ -12,7 +12,8 @@ import 'package:town_pass/util/tp_web_view.dart';
 ///
 /// `open`、`say`、`stop` 在這裡處理；`click`、`fill`、`read`、`wait` 交給注入頁面的
 /// `assets/task_runner/runner.js`。腳本是開發時寫好的，LLM 只負責挑腳本、填關鍵字；
-/// 執行器只開放白名單網域，腳本停在付款、送出、登入之前。
+/// 執行器只開放白名單網域，腳本停在登入之前；付款拆成兩段腳本，
+/// 網頁複誦金額、使用者說「對」之後才會送來第二段（見設計文件第四節安全規則）。
 class TaskRunnerService extends GetxService {
   static const Set<String> allowedHosts = {'taipei-pass-service.vercel.app'};
   static const List<String> _pageSteps = ['click', 'fill', 'read', 'wait'];
@@ -29,6 +30,9 @@ class TaskRunnerService extends GetxService {
   bool _stopped = false;
   String? _runnerJs;
 
+  /// 目前這次執行，收尾（念完、收起浮層）後完成；沒有在執行時為 null
+  Future<void>? _current;
+
   /// 執行 [script]，回傳 `read` 步驟讀到的內容（以 `as` 為 key）。
   ///
   /// 每一步開始時以 [onStep] 回報；失敗時丟出 [TaskException]，
@@ -38,11 +42,31 @@ class TaskRunnerService extends GetxService {
     required Map slots,
     required void Function(int step, String say) onStep,
   }) async {
-    // 同時只跑一個：上一個還在跑就先停掉
-    if (running.value) {
+    // 同時只跑一個：上一個還在跑就先停掉，並等它收尾完再開始。
+    // 不等的話，上一個收尾時會把 running 設回 false，這一個的浮層和停止按鈕就失效了
+    while (_current != null) {
+      final Future<void> previous = _current!;
       await stop();
+      await previous;
     }
 
+    final Completer<void> finished = Completer<void>();
+    _current = finished.future;
+    _stopped = false;
+    _stopSignal = Completer<void>();
+    try {
+      return await _run(script: script, slots: slots, onStep: onStep);
+    } finally {
+      _current = null;
+      finished.complete();
+    }
+  }
+
+  Future<Map<String, Object?>> _run({
+    required Map script,
+    required Map slots,
+    required void Function(int step, String say) onStep,
+  }) async {
     final List<Map> steps = [for (final Object? step in script['steps'] ?? const []) step as Map];
     final List<Uri> urls = [
       for (final Map step in steps)
@@ -54,11 +78,13 @@ class TaskRunnerService extends GetxService {
     if (!await _isOnline(urls.first.host)) {
       throw const TaskException('offline', 0, '目前沒有網路，無法開啟服務頁');
     }
+    // 檢查網路的期間按了停止：還沒開頁面，直接結束
+    if (_stopped) {
+      throw const TaskException('stopped', 0, '已停止');
+    }
 
     final Map<String, Object?> values = {...slots.cast<String, Object?>()};
     final Map<String, Object?> result = {};
-    _stopped = false;
-    _stopSignal = Completer<void>();
     caption.value = '';
     running.value = true;
 
@@ -115,7 +141,8 @@ class TaskRunnerService extends GetxService {
 
   /// 使用者按了浮層的停止、返回，或網頁送了 `{ action: 'stop' }`。
   Future<void> stop() async {
-    if (!running.value || _stopped) {
+    // 看 _current 而不是 running：檢查網路的期間 running 還是 false，這時也要能停
+    if (_current == null || _stopped) {
       return;
     }
     _stopped = true;
