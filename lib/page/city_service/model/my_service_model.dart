@@ -41,8 +41,9 @@ extension MyServiceIdExt on MyServiceItemId {
           description: '用說的辦市政服務',
           icon: Assets.svg.iconVoiceAgent.svg(),
           category: MyServiceCategory.cityService,
-          // TODO: 填入微服務網頁（TPE_Codefest2026/web）部署到 Firebase Hosting 的網址
-          destinationUrl: '',
+          // 微服務網頁（TPE_Codefest2026/web）的 Firebase Hosting 預覽頻道（dev），預設 7 天後過期；
+          // 正式版改成 https://tpe-codefest2026.web.app
+          destinationUrl: 'https://tpe-codefest2026--dev-ew0fth1s.web.app',
           forceWebViewTitle: 'AI 語音助手',
         ),
       MyServiceItemId.dedicatedLine => MyServiceItem(
