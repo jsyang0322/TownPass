@@ -5,7 +5,8 @@ import 'package:town_pass/util/web_message_handler/tp_web_message_handler.dart';
 
 /// 執行任務腳本，自動操作台北通服務頁。
 ///
-/// 網頁送 `{ id, script, slots }` 開始，送 `{ action: 'stop' }` 停止。
+/// 網頁送 `{ id, script, slots }` 開始，送 `{ action: 'stop' }` 停止，
+/// 送 `{ action: 'close' }` 關掉任務頁、回到助手網頁（查無結果時，不回覆）。
 /// 每一步回 `{ id, status: 'partial', step, say }`，完成回 `{ id, status: 'done', result }`；
 /// 失敗回 `{ id, status: 'error', code, step, message }`，
 /// `code` 為 `offline`、`not_allowed`、`step_failed`、`stopped`。
@@ -27,6 +28,10 @@ class RunTaskMessageHandler extends TPWebMessageHandler {
 
     if (message['action'] == 'stop') {
       await runner.stop();
+      return;
+    }
+    if (message['action'] == 'close') {
+      await runner.close();
       return;
     }
 

@@ -150,6 +150,16 @@ class TaskRunnerService extends GetxService {
     await _speech.stopSpeaking();
   }
 
+  /// 網頁送了 `{ action: 'close' }`（查無結果時）：關掉任務頁，回到助手網頁。
+  /// 任務頁已經關了就不做事；關閉時 [detach] 會清掉 [_controller]，所以用它判斷頁面還在不在。
+  Future<void> close() async {
+    if (_controller == null) {
+      return;
+    }
+    await stop();
+    Get.back();
+  }
+
   /// 執行任務的服務頁建立 WebView 時呼叫。
   void attach(InAppWebViewController controller) {
     _controller = controller;
