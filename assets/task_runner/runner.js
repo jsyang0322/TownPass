@@ -13,6 +13,8 @@
 //   { "click": <定位> }
 //   { "fill":  { ...<定位>, "value": "ABC-123" } }
 //   { "read":  { ...<定位>, "all"?: true, "pairs"?: true } }
+//                                        all：回傳陣列；等到逾時仍沒有符合的元素時回傳 []（例如查無資料），
+//                                        不算失敗，所以用 all 時建議把 timeoutMs 設短一點
 //   { "wait":  <定位> }                  只等元素出現，不操作（例如等換頁完成）
 // 定位（擇一，依序嘗試 selector → near → text）：
 //   { "text": "查詢" }                   畫面上看得到的文字；先找完全相符，再找包含
@@ -23,7 +25,7 @@
 // 示範服務站是 Vue 單頁應用：按下查詢後在同一份頁面內換路由，不會觸發 onLoadStop，
 // 所以每一步都先等目標元素出現，不依賴頁面載入事件。
 (() => {
-  const VERSION = 1;
+  const VERSION = 2;
   if (window.__tpRunner && window.__tpRunner.version >= VERSION) return;
 
   const HIGHLIGHT = '4px solid #F5BA4B';
@@ -161,7 +163,12 @@
       }
 
       if (type === 'read' && target.all) {
-        const list = await find(target, { all: true });
+        let list = [];
+        try {
+          list = await find(target, { all: true });
+        } catch (error) {
+          if (error.code !== 'not_found') throw error;
+        }
         return { ok: true, value: list.map((el) => readValue(el, target)) };
       }
 
