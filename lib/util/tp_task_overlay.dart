@@ -5,7 +5,7 @@ import 'package:town_pass/util/tp_button.dart';
 import 'package:town_pass/util/tp_colors.dart';
 import 'package:town_pass/util/tp_text.dart';
 
-/// 腳本執行中疊在服務頁上的浮層：上方「AI 操作中」與目前步驟的字幕，底部大的「停止」按鈕。
+/// 腳本執行中疊在服務頁上的浮層：上方「操作中」與目前步驟的字幕，底部大的「停止」按鈕。
 ///
 /// 執行結束後浮層收起，頁面交還使用者自己操作。[enabled] 為 false 時直接顯示 [child]。
 class TPTaskOverlay extends StatefulWidget {
@@ -57,7 +57,7 @@ class _TPTaskOverlayState extends State<TPTaskOverlay> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const TPText('AI 操作中', style: TPTextStyles.bodySemiBold, color: TPColors.secondary500),
+                          const TPText('操作中', style: TPTextStyles.bodySemiBold, color: TPColors.secondary500),
                           const SizedBox(height: 4),
                           TPText(_runner.caption.value, style: TPTextStyles.h3Regular, color: TPColors.white),
                         ],
